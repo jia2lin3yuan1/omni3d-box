@@ -74,9 +74,9 @@ def create_colorbar(height, width, color_lo=(0,0, 250), color_hi=(0, 250, 250)):
 
 
 def visualize_from_instances(detections, dataset, dataset_name, min_size_test, output_folder, category_names_official, iteration=''):
-    
+
     vis_folder = os.path.join(output_folder, 'vis')
-    
+
     util.mkdir_if_missing(vis_folder)
 
     log_str = ''
@@ -93,13 +93,13 @@ def visualize_from_instances(detections, dataset, dataset_name, min_size_test, o
     thres = np.sqrt(1/n_cats)
 
     for imind, im_obj in enumerate(detections):
-        
+
         write_sample = ((imind % 50) == 0)
-        
+
         annos = dataset._dataset[imind]['annotations']
         gt_boxes_2d = np.array([anno['bbox'] for anno in annos])
-        
-        if len(gt_boxes_2d)==0: 
+
+        if len(gt_boxes_2d)==0:
             continue
 
         gt_boxes_2d[:, 2] += gt_boxes_2d[:, 0]
@@ -118,12 +118,12 @@ def visualize_from_instances(detections, dataset, dataset_name, min_size_test, o
         sf = im_obj['height'] / min_size_test
 
         for instance in im_obj['instances']:
-            
+
             cat = category_names_official[instance['category_id']]
             score = instance['score']
             x1, y1, w, h = instance['bbox']
-            x2 = x1 + w 
-            y2 = y1 + h 
+            x2 = x1 + w
+            y2 = y1 + h
 
             alpha, h3d, w3d, l3d, x3d, y3d, z3d, ry3d = (-1,)*8
 
@@ -156,7 +156,7 @@ def visualize_from_instances(detections, dataset, dataset_name, min_size_test, o
                 gt_ry3d = np.array(gt_pose)
 
             if valid_match:
-            
+
                 # compute errors
                 xy_errors.append(np.sqrt(((cen_2d[:2] - gt_cen_2d[:2])**2).sum()))
                 z_errors.append(np.abs(z3d - gt_z3d))
@@ -164,7 +164,7 @@ def visualize_from_instances(detections, dataset, dataset_name, min_size_test, o
                 h3d_errors.append(np.abs(h3d - gt_h3d))
                 l3d_errors.append(np.abs(l3d - gt_l3d))
                 dim_errors.append(np.sqrt((w3d - gt_w3d)**2 + (h3d - gt_h3d)**2 + (l3d - gt_l3d)**2))
-                
+
                 try:
                     ry_errors.append(so3_relative_angle(torch.from_numpy(ry3d).unsqueeze(0), torch.from_numpy(gt_ry3d).unsqueeze(0), cos_bound=1).item())
                 except:
@@ -181,8 +181,8 @@ def visualize_from_instances(detections, dataset, dataset_name, min_size_test, o
 
         if write_sample:
             util.imwrite(im, os.path.join(vis_folder, '{:06d}.jpg'.format(imind)))
-    
-    # safety in case all rotation matrices failed. 
+
+    # safety in case all rotation matrices failed.
     if len(ry_errors) == 0:
         ry_errors = [1000, 1000]
 
@@ -209,7 +209,7 @@ def imshow(im, fig_num=None):
 
 def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_factor=1.0, mode='front_and_novel', blend_weight=0.80, blend_weight_overlay=1.0, ground_bounds=None, canvas=None, zplane=0.05):
     """
-    Draws a scene from multiple different modes. 
+    Draws a scene from multiple different modes.
     Args:
         im (array): the image to draw onto
         K (array): the 3x3 matrix for projection to camera to screen
@@ -219,21 +219,21 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
         R (array): a single 3x3 matrix defining the novel view
         T (array): a 3x vector defining the position of the novel view
         zoom_factor (float): an optional amount to zoom out (>1) or in (<1)
-        mode (str): supports ['2D_only', 'front', 'novel', 'front_and_novel'] where 
+        mode (str): supports ['2D_only', 'front', 'novel', 'front_and_novel'] where
             front implies the front-facing camera view and novel is based on R,T
         blend_weight (float): blend factor for box edges over the RGB
         blend_weight_overlay (float): blends the RGB image with the rendered meshes
-        ground_bounds (tuple): max_y3d, x3d_start, x3d_end, z3d_start, z3d_end for the Ground floor or 
+        ground_bounds (tuple): max_y3d, x3d_start, x3d_end, z3d_start, z3d_end for the Ground floor or
             None to let the renderer to estimate the ground bounds in the novel view itself.
         canvas (array): if the canvas doesn't change it can be faster to re-use it. Optional.
         zplane (float): a plane of depth to solve intersection when
-            vertex points project behind the camera plane. 
+            vertex points project behind the camera plane.
     """
     if R is None:
         R = util.euler2mat([np.pi/3, 0, 0])
 
     if mode == '2D_only':
-        
+
         im_drawn_rgb = deepcopy(im)
 
         # go in order of reverse depth
@@ -244,47 +244,46 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
             verts2D = (K @ verts3D.T) / verts3D[:, -1]
 
             color = [min(255, c*255*1.25) for c in mesh.textures.verts_features_padded()[0,0].tolist()]
-            
+
             x1 = verts2D[0, :].min()
-            y1 = verts2D[1, :].min() 
-            x2 = verts2D[0, :].max() 
-            y2 = verts2D[1, :].max() 
+            y1 = verts2D[1, :].min()
+            x2 = verts2D[0, :].max()
+            y2 = verts2D[1, :].max()
 
             draw_2d_box(im_drawn_rgb, [x1, y1, x2-x1, y2-y1], color=color, thickness=max(2, int(np.round(3*im_drawn_rgb.shape[0]/1250))))
-            
+
             if text is not None:
                 draw_text(im_drawn_rgb, '{}'.format(text[mesh_idx]), [x1, y1], scale=0.50*im_drawn_rgb.shape[0]/500, bg_color=color)
-        
+
         return im_drawn_rgb
 
     else:
-        
         meshes_scene = join_meshes_as_scene(meshes).cuda()
         device = meshes_scene.device
         meshes_scene.textures = meshes_scene.textures.to(device)
 
         cameras = util.get_camera(K, im.shape[1], im.shape[0]).to(device)
         renderer = util.get_basic_renderer(cameras, im.shape[1], im.shape[0], use_color=True).to(device)
-        
+
 
         if mode in ['front_and_novel', 'front']:
             '''
             Render full scene from image view
             '''
-            
+
             im_drawn_rgb = deepcopy(im)
 
             # save memory if not blending the render
             if blend_weight > 0:
                 rendered_img, _ = renderer(meshes_scene)
                 sil_mask = rendered_img[0, :, :, 3].cpu().numpy() > 0.1
-                rendered_img = (rendered_img[0, :, :, :3].cpu().numpy() * 255).astype(np.uint8)    
+                rendered_img = (rendered_img[0, :, :, :3].cpu().numpy() * 255).astype(np.uint8)
                 im_drawn_rgb[sil_mask] = rendered_img[sil_mask] * blend_weight + im_drawn_rgb[sil_mask] * (1 - blend_weight)
 
             '''
             Draw edges for image view
             '''
-            
+
             # go in order of reverse depth
             for mesh_idx in reversed(np.argsort([mesh.verts_padded().cpu().mean(1)[0, 1] for mesh in meshes])):
                 mesh = meshes[mesh_idx]
@@ -295,14 +294,14 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
                 color = [min(255, c*255*1.25) for c in mesh.textures.verts_features_padded()[0,0].tolist()]
 
                 draw_3d_box_from_verts(
-                    im_drawn_rgb, K, verts3D, color=color, 
-                    thickness=max(2, int(np.round(3*im_drawn_rgb.shape[0]/1250))), 
+                    im_drawn_rgb, K, verts3D, color=color,
+                    thickness=max(2, int(np.round(3*im_drawn_rgb.shape[0]/1250))),
                     draw_back=False, draw_top=False, zplane=zplane
                 )
 
                 x1 = verts2D[0, :].min() #min(verts2D[0, (verts2D[0, :] > 0) & (verts2D[0, :] < im_drawn_rgb.shape[1])])
                 y1 = verts2D[1, :].min() #min(verts2D[1, (verts2D[1, :] > 0) & (verts2D[1, :] < im_drawn_rgb.shape[0])])
-                
+
                 if text is not None:
                     draw_text(im_drawn_rgb, '{}'.format(text[mesh_idx]), [x1, y1], scale=0.50*im_drawn_rgb.shape[0]/500, bg_color=color)
 
@@ -317,7 +316,7 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
             '''
             Render from a new view
             '''
-            
+
             has_canvas_already = canvas is not None
             if not has_canvas_already:
                 canvas = np.ones((scale, scale, 3))
@@ -328,7 +327,7 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
                 center = (meshes_scene.verts_padded().min(1).values + meshes_scene.verts_padded().max(1).values).unsqueeze(0)/2
             else:
                 center = torch.from_numpy(T).float().to(device).view(1, 1, 3)
-            
+
             verts_rotated = meshes_scene.verts_padded().clone()
             verts_rotated -= center
             verts_rotated = (view_R @ verts_rotated[0].T).T.unsqueeze(0)
@@ -359,11 +358,11 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
                     # this implies we have zoomed in too much
                     if (verts[0, :, -1] < 0.25).any():
                         break
-                    
+
                     # left or above image
                     elif (proj[:2, :] < scale*margin).any():
                         break
-                    
+
                     # right or below borders
                     elif (proj[:2, :] > scale*(1 - margin)).any():
                         break
@@ -382,7 +381,7 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
             rendered_img, _ = renderer(meshes_novel_view)
             im_novel_view = (rendered_img[0, :, :, :3].cpu().numpy() * 255).astype(np.uint8)
             sil_mask = rendered_img[0, :, :, 3].cpu().numpy() > 0.1
-            
+
             center_np = center.cpu().numpy()
             view_R_np = view_R.cpu().numpy()
 
@@ -424,7 +423,7 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
                     if (not maskz.any()) or (not maskx.any()):
                         return im, im, canvas
 
-                    # go for grid projection again!! but with sensible bounds    
+                    # go for grid projection again!! but with sensible bounds
                     x3d_start = np.round(point_mesh[:, :, 0].T[maskx].min() - 10)
                     x3d_end = np.round(point_mesh[:, :, 0].T[maskx].max() + 10)
                     z3d_start = np.round(point_mesh_orig[:, :, 2].T[maskz].min() - 10)
@@ -466,7 +465,7 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
                     for grid_col_idx in range(1, len(grid_xs)):
                         pre_x = grid_xs[grid_col_idx-1]
                         cur_x = grid_xs[grid_col_idx]
-                        
+
                         p1 = point_mesh_2D[grid_row_idx-1, grid_col_idx-1]
                         valid1 = p1[-1] > 0
                         p2 = point_mesh_2D[grid_row_idx-1, grid_col_idx]
@@ -497,7 +496,7 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
             meshes_novel = []
 
             for mesh in meshes:
-                
+
                 mesh_novel = mesh.clone().to(device)
 
                 verts_rotated = mesh_novel.verts_padded()
@@ -518,14 +517,14 @@ def draw_scene_view(im, K, meshes, text=None, scale=1000, R=None, T=None, zoom_f
                 color = [min(255, c*255*1.25) for c in mesh.textures.verts_features_padded()[0,0].tolist()]
 
                 draw_3d_box_from_verts(
-                    im_novel_view, K_novelview, verts3D, color=color, 
-                    thickness=max(2, int(np.round(3*im_novel_view.shape[0]/1250))), 
+                    im_novel_view, K_novelview, verts3D, color=color,
+                    thickness=max(2, int(np.round(3*im_novel_view.shape[0]/1250))),
                     draw_back=False, draw_top=False, zplane=zplane
                 )
-                
-                x1 = verts2D[0, :].min() 
-                y1 = verts2D[1, :].min() 
-                
+
+                x1 = verts2D[0, :].min()
+                y1 = verts2D[1, :].min()
+
                 if text is not None:
                     draw_text(im_novel_view, '{}'.format(text[mesh_idx]), [x1, y1], scale=0.50*im_novel_view.shape[0]/500, bg_color=color)
 
@@ -570,7 +569,7 @@ def draw_transparent_polygon(im, verts, blend=0.5, color=(0, 255, 255)):
 
 def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, draw_back=False, draw_top=False, zplane=0.05, eps=1e-4):
     """
-    Draws a scene from multiple different modes. 
+    Draws a scene from multiple different modes.
     Args:
         im (array): the image to draw onto
         K (array): the 3x3 matrix for projection to camera to screen
@@ -580,7 +579,7 @@ def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, dra
         draw_back (bool): whether a backface should be highlighted
         draw_top (bool): whether the top face should be highlighted
         zplane (float): a plane of depth to solve intersection when
-            vertex points project behind the camera plane. 
+            vertex points project behind the camera plane.
     """
 
     if isinstance(K, torch.Tensor):
@@ -591,11 +590,11 @@ def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, dra
 
     # reorder
     bb3d_lines_verts = [[0, 1], [1, 2], [2, 3], [3, 0], [1, 5], [5, 6], [6, 2], [4, 5], [4, 7], [6, 7], [0, 4], [3, 7]]
-    
+
     # define back and top vetice planes
     back_idxs = [4, 0, 3, 7]
     top_idxs = [4, 0, 1, 5]
-    
+
     for (i, j) in bb3d_lines_verts:
         v0 = verts3d[i]
         v1 = verts3d[j]
@@ -603,7 +602,7 @@ def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, dra
         z0, z1 = v0[-1], v1[-1]
 
         if (z0 >= zplane or z1 >= zplane):
-            
+
             # computer intersection of v0, v1 and zplane
             s = (zplane - z0) / max((z1 - z0), eps)
             new_v = v0 + s * (v1 - v0)
@@ -619,9 +618,9 @@ def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, dra
             v1_proj = (K @ v1)/max(v1[-1], eps)
 
             # project vertices
-            cv2.line(im, 
-                (int(v0_proj[0]), int(v0_proj[1])), 
-                (int(v1_proj[0]), int(v1_proj[1])), 
+            cv2.line(im,
+                (int(v0_proj[0]), int(v0_proj[1])),
+                (int(v1_proj[0]), int(v1_proj[1])),
                 color, thickness
             )
 
@@ -630,11 +629,11 @@ def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, dra
     draw_top &= np.all(verts3d[top_idxs, -1] >= zplane)
 
     if draw_back or draw_top:
-        
+
         # project to image
         verts2d = (K @ verts3d.T).T
         verts2d /= verts2d[:, -1][:, np.newaxis]
-        
+
         if type(verts2d) == torch.Tensor:
             verts2d = verts2d.detach().cpu().numpy()
 
@@ -643,7 +642,7 @@ def draw_3d_box_from_verts(im, K, verts3d, color=(0, 200, 200), thickness=1, dra
 
         if draw_top:
             draw_transparent_polygon(im, verts2d[top_idxs, :2], blend=0.5, color=color)
-    
+
 
 def draw_3d_box(im, K, box3d, R, color=(0, 200, 200), thickness=1, draw_back=False, draw_top=False, view_R=None, view_T=None):
 
@@ -657,11 +656,11 @@ def draw_text(im, text, pos, scale=0.4, color='auto', font=cv2.FONT_HERSHEY_SIMP
     pos = [int(pos[0]), int(pos[1])]
 
     if color == 'auto':
-        
+
         if bg_color is not None:
             color = (0, 0, 0) if ((bg_color[0] + bg_color[1] + bg_color[2])/3) > 127.5 else (255, 255, 255)
         else:
-            color = (0, 0, 0) 
+            color = (0, 0, 0)
 
     if bg_color is not None:
 
@@ -674,7 +673,7 @@ def draw_text(im, text, pos, scale=0.4, color='auto', font=cv2.FONT_HERSHEY_SIMP
         im[y_s:y_e + 1, x_s:x_e + 1, 0] = im[y_s:y_e + 1, x_s:x_e + 1, 0]*blend + bg_color[0] * (1 - blend)
         im[y_s:y_e + 1, x_s:x_e + 1, 1] = im[y_s:y_e + 1, x_s:x_e + 1, 1]*blend + bg_color[1] * (1 - blend)
         im[y_s:y_e + 1, x_s:x_e + 1, 2] = im[y_s:y_e + 1, x_s:x_e + 1, 2]*blend + bg_color[2] * (1 - blend)
-        
+
         pos[0] = int(np.clip(pos[0] + 2, a_min=0, a_max=im.shape[1]))
         pos[1] = int(np.clip(pos[1] - 2, a_min=0, a_max=im.shape[0]))
 

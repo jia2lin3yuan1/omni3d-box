@@ -24,7 +24,7 @@ from cubercnn import util, vis
 
 @META_ARCH_REGISTRY.register()
 class RCNN3D(GeneralizedRCNN):
-    
+
     @classmethod
     def from_config(cls, cfg, priors=None):
         backbone = build_backbone(cfg, priors=priors)
@@ -39,7 +39,7 @@ class RCNN3D(GeneralizedRCNN):
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
-        
+
         if not self.training:
             return self.inference(batched_inputs)
 
@@ -61,8 +61,8 @@ class RCNN3D(GeneralizedRCNN):
         proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
 
         instances, detector_losses = self.roi_heads(
-            images, features, proposals, 
-            Ks, im_scales_ratio, 
+            images, features, proposals,
+            Ks, im_scales_ratio,
             gt_instances
         )
 
@@ -89,7 +89,7 @@ class RCNN3D(GeneralizedRCNN):
         # scaling factor for the sample relative to its original scale
         # e.g., how much has the image been upsampled by? or downsampled?
         im_scales_ratio = [info['height'] / im.shape[1] for (info, im) in zip(batched_inputs, images)]
-        
+
         # The unmodified intrinsics for the image
         Ks = [torch.FloatTensor(info['K']) for info in batched_inputs]
 
@@ -99,12 +99,12 @@ class RCNN3D(GeneralizedRCNN):
         if type(batched_inputs == list) and np.any(['oracle2D' in b for b in batched_inputs]):
             oracles = [b['oracle2D'] for b in batched_inputs]
             results, _ = self.roi_heads(images, features, oracles, Ks, im_scales_ratio, None)
-        
+
         # normal inference
         else:
             proposals, _ = self.proposal_generator(images, features, None)
             results, _ = self.roi_heads(images, features, proposals, Ks, im_scales_ratio, None)
-            
+
         if do_postprocess:
             assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
             return GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
@@ -124,7 +124,7 @@ class RCNN3D(GeneralizedRCNN):
             instances (list): a list that contains predicted RoIhead instances. Both
                 batched_inputs and proposals should have the same length.
         """
-        
+
         storage = get_event_storage()
 
         # minimum number of boxes to try to visualize per image
@@ -136,7 +136,7 @@ class RCNN3D(GeneralizedRCNN):
 
         for input, prop, instances_i in zip(batched_inputs, proposals, instances):
 
-            img = input["image"]            
+            img = input["image"]
             img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
             img_3DGT = np.ascontiguousarray(img.copy()[:, :, [2, 1, 1]]) # BGR
             img_3DPR = np.ascontiguousarray(img.copy()[:, :, [2, 1, 1]]) # BGR
@@ -164,16 +164,16 @@ class RCNN3D(GeneralizedRCNN):
             scale = input['height']/img.shape[0]
             fx, sx = (val.item()/scale for val in K[0, [0, 2]])
             fy, sy = (val.item()/scale for val in K[1, [1, 2]])
-            
+
             K_scaled = torch.tensor(
-                [[1/scale, 0 , 0], [0, 1/scale, 0], [0, 0, 1.0]], 
+                [[1/scale, 0 , 0], [0, 1/scale, 0], [0, 0, 1.0]],
                 dtype=torch.float32, device=self.device
             ) @ K
 
             gts_per_image = input["instances"]
 
             gt_classes = gts_per_image.gt_classes
-            
+
             # Filter out irrelevant groundtruth
             fg_selection_mask = (gt_classes != -1) & (gt_classes < self.num_classes)
 
@@ -191,26 +191,26 @@ class RCNN3D(GeneralizedRCNN):
 
             gt_x3D = gt_z * (gt_boxes3D[:, 0] - sx)/fx
             gt_y3D = gt_z * (gt_boxes3D[:, 1] - sy)/fy
-            
+
             # put together the GT boxes
             gt_center_3D = torch.stack((gt_x3D, gt_y3D, gt_z)).T
             gt_boxes3D_XYZ_WHL = torch.cat((gt_center_3D, gt_boxes3D[:, 3:6]), dim=1)
 
             gt_colors = torch.tensor(
-                [util.get_color(i) for i in range(len(gt_boxes3D_XYZ_WHL))], 
+                [util.get_color(i) for i in range(len(gt_boxes3D_XYZ_WHL))],
                 device=self.device
             )/255.0
 
             gt_meshes = util.mesh_cuboid(gt_boxes3D_XYZ_WHL, gt_poses, gt_colors)
 
-            # perform a simple NMS, which is not cls dependent. 
+            # perform a simple NMS, which is not cls dependent.
             keep = batched_nms(
-                instances_i.pred_boxes.tensor, 
-                instances_i.scores, 
-                torch.zeros(len(instances_i.scores), dtype=torch.long, device=instances_i.scores.device), 
+                instances_i.pred_boxes.tensor,
+                instances_i.scores,
+                torch.zeros(len(instances_i.scores), dtype=torch.long, device=instances_i.scores.device),
                 self.roi_heads.box_predictor.test_nms_thresh
             )
-            
+
             keep = keep[:max_vis_prop]
             num_to_visualize = len(keep)
 
@@ -218,7 +218,7 @@ class RCNN3D(GeneralizedRCNN):
             pred_pose = instances_i.pred_pose[keep]
 
             pred_colors = torch.tensor(
-                [util.get_color(i) for i in range(num_to_visualize)], 
+                [util.get_color(i) for i in range(num_to_visualize)],
                 device=self.device
             )/255.0
 
