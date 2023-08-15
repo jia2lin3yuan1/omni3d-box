@@ -87,6 +87,11 @@ MODEL.WEIGHTS cubercnn://omni3d/cubercnn_DLA34_FPN.pth \
 OUTPUT_DIR output/demo 
 ```
 
+# Run on example 'cassie' dataset
+```
+./run_demo.sh
+```
+
 See [`demo.py`](demo/demo.py) for more details. For example, if you know the camera intrinsics you may input them as arguments with the convention `--focal-length <float>` and `--principal-point <float> <float>`. See our [`MODEL_ZOO.md`](MODEL_ZOO.md) for more model checkpoints. 
 
 ## Omni3D Data <a name="data"></a>
